@@ -1,13 +1,13 @@
 var schema    = require('../schema').tables,
     _         = require('lodash'),
     validator = require('validator'),
+    moment    = require('moment-timezone'),
     assert    = require('assert'),
     Promise   = require('bluebird'),
     errors    = require('../../errors'),
     config    = require('../../config'),
-    readThemes = require('../../utils/read-themes'),
+    readThemes  = require('../../utils/read-themes'),
     i18n        = require('../../i18n'),
-    toString    = require('lodash.tostring'),
 
     validateSchema,
     validateSettings,
@@ -35,7 +35,11 @@ validator.extend('empty', function empty(str) {
 });
 
 validator.extend('notContains', function notContains(str, badString) {
-    return !_.contains(str, badString);
+    return !_.includes(str, badString);
+});
+
+validator.extend('isTimezone', function isTimezone(str) {
+    return moment.tz.zone(str) ? true : false;
 });
 
 validator.extend('isEmptyOrURL', function isEmptyOrURL(str) {
@@ -54,7 +58,7 @@ validateSchema = function validateSchema(tableName, model) {
 
     _.each(columns, function each(columnKey) {
         var message = '',
-            strVal = toString(model[columnKey]);
+            strVal = _.toString(model[columnKey]);
 
         // check nullable
         if (model.hasOwnProperty(columnKey) && schema[tableName][columnKey].hasOwnProperty('nullable')
@@ -126,7 +130,7 @@ validateSettings = function validateSettings(defaultSettings, model) {
     return Promise.resolve();
 };
 
-validateActiveTheme = function validateActiveTheme(themeName) {
+validateActiveTheme = function validateActiveTheme(themeName, options) {
     // If Ghost is running and its availableThemes collection exists
     // give it priority.
     if (config.paths.availableThemes && Object.keys(config.paths.availableThemes).length > 0) {
@@ -141,9 +145,15 @@ validateActiveTheme = function validateActiveTheme(themeName) {
     }
 
     return availableThemes.then(function then(themes) {
-        if (!themes.hasOwnProperty(themeName)) {
-            return Promise.reject(new errors.ValidationError(i18n.t('notices.data.validation.index.themeCannotBeActivated', {themeName: themeName}), 'activeTheme'));
+        if (themes.hasOwnProperty(themeName)) {
+            return;
         }
+
+        if (options && options.showWarning) {
+            errors.logWarn(i18n.t('errors.middleware.themehandler.missingTheme', {theme: themeName}));
+            return;
+        }
+        return Promise.reject(new errors.ValidationError(i18n.t('notices.data.validation.index.themeCannotBeActivated', {themeName: themeName}), 'activeTheme'));
     });
 };
 
@@ -166,7 +176,7 @@ validateActiveTheme = function validateActiveTheme(themeName) {
 // available validators: https://github.com/chriso/validator.js#validators
 validate = function validate(value, key, validations) {
     var validationErrors = [];
-    value = toString(value);
+    value = _.toString(value);
 
     _.each(validations, function each(validationOptions, validationName) {
         var goodResult = true;

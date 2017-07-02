@@ -94,7 +94,7 @@ posts = {
 
         // Push all of our tasks into a `tasks` array in the correct order
         tasks = [
-            utils.validate(docName, {attrs: attrs}),
+            utils.validate(docName, {attrs: attrs, opts: options.opts || []}),
             utils.handlePublicPermissions(docName, 'read'),
             utils.convertOptions(allowedIncludes),
             modelQuery
@@ -135,7 +135,7 @@ posts = {
 
         // Push all of our tasks into a `tasks` array in the correct order
         tasks = [
-            utils.validate(docName, {opts: utils.idDefaultOptions}),
+            utils.validate(docName, {opts: utils.idDefaultOptions.concat(options.opts || [])}),
             utils.handlePermissions(docName, 'edit'),
             utils.convertOptions(allowedIncludes),
             modelQuery
@@ -220,8 +220,8 @@ posts = {
                 data = _.defaults({status: 'all'}, options),
                 fetchOpts = _.defaults({require: true, columns: 'id'}, options);
 
-            return Post.findOne(data, fetchOpts).then(function (post) {
-                return post.destroy(options).return(null);
+            return Post.findOne(data, fetchOpts).then(function () {
+                return Post.destroy(options).return(null);
             }).catch(Post.NotFoundError, function () {
                 throw new errors.NotFoundError(i18n.t('errors.api.posts.postNotFound'));
             });
